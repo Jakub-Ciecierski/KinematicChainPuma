@@ -1,0 +1,3 @@
+[submodule "InfinityXLib"]
+	path = InfinityXLib
+	url = https://github.com/Jakub-Ciecierski/InfinityXLib
