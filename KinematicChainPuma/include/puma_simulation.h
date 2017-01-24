@@ -13,7 +13,7 @@ class RenderObject;
 }
 
 struct PumaSimulationCreateParams{
-    float simulation_length = 10;
+    float simulation_length = 1000;
     std::shared_ptr<Puma> puma = nullptr;
 
     std::shared_ptr<ifx::RenderObject> destination_axis;

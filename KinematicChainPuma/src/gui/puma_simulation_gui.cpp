@@ -102,6 +102,12 @@ void PumaSimulationGUI::RenderPumaParamsState(){
     ImGui::SliderFloat("a4", &state.alpha4, 0, 360);
     ImGui::SliderFloat("a5", &state.alpha5, 0, 360);
     ImGui::SliderFloat("q2", &state.length2, 0.1, 10);
+
+    ImGui::SliderFloat("z4_multiplier",
+                       simulation_->puma()->z4_multiplier(), -1, 1);
+    ImGui::SliderFloat("angle_multiplier",
+                       simulation_->puma()->angle_multiplier(), -1, 1);
+
 }
 
 void PumaSimulationGUI::Reset(){

@@ -35,6 +35,7 @@ struct PumaArms{
     PumaEffector effector;
 
     std::shared_ptr<ifx::GameObject> game_object;
+    std::shared_ptr<ifx::GameObject> debug_points;
 };
 
 struct PumaParts {
@@ -96,10 +97,15 @@ public:
     Puma(PumaArms& puma_arms);
     ~Puma();
 
+    PumaArms& puma_arms(){return puma_arms_;}
     std::shared_ptr<ifx::GameObject> game_object(){
         return puma_arms_.game_object;}
     PumaEffector& effector(){return puma_arms_.effector;}
     PumaState& state(){return state_;}
+
+    float* z4_multiplier(){return &z4_multiplier_;}
+    float* angle_multiplier(){return &angle_multiplier_;}
+
 
     /**
      * Inverse Kinematics.
@@ -111,13 +117,30 @@ public:
 private:
     // <Inverse>
     InverseKinematicsInput PreperInput();
+
+    PumaState ComputeInverseAlgeb(InverseKinematicsInput in);
+
     PumaState ComputeOptimalState();
-    PumaState ComputeInverse(InverseKinematicsInput in, float z4_multiplier);
+    PumaState ComputeInverse(InverseKinematicsInput in,
+                             float z4_multiplier);
+    PumaState ComputeInverseWithAngleMultiplier(
+            InverseKinematicsInput in,
+            float z4_multiplier,
+            float alpha4_multiplier,
+            float alpha3_multiplier);
+
     glm::vec3 ComputeZ4(const glm::vec3& x5, const glm::vec3& n);
+    float ComputeDistance(const PumaState& state1, const PumaState& state2);
     /**
      * In degrees
      */
-    float Angle(const glm::vec3& v, const glm::vec3& w);
+    float Angle(const glm::vec3& v, const glm::vec3& w, bool info = false);
+    float Angle3(const glm::vec3& v, const glm::vec3& w, float multiplier);
+    float Angle4(const glm::vec3& v, const glm::vec3& w, float multiplier);
+    void ClampState(PumaState& state);
+    void UpdateDebugPoints(const glm::vec3& p1, const glm::vec3& p2,
+                           const glm::vec3& p3, const glm::vec3& p4,
+                           const glm::vec3& p5);
     // </Inverse>
 
     // <Direction>
@@ -155,6 +178,11 @@ private:
 
     glm::vec3 last_effector_position_;
     glm::vec3 last_effector_rotation_;
+
+    glm::vec3 last_z4_;
+
+    float z4_multiplier_;
+    float angle_multiplier_;
 };
 
 

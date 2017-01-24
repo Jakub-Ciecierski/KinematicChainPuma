@@ -6,6 +6,7 @@
 #include <object/render_object.h>
 #include <graphics/model_loader/model_loader.h>
 #include <puma.h>
+#include <graphics/factory/render_object_factory.h>
 
 PumaFactory::PumaFactory(){}
 PumaFactory::~PumaFactory(){}
@@ -47,6 +48,13 @@ std::shared_ptr<Puma> PumaFactory::CreatePuma(
     arms.game_object->Add(arms.arm3.connector_render_object);
     arms.game_object->Add(arms.arm4.render_object);
     arms.game_object->Add(arms.effector.render_object);
+
+    arms.debug_points = std::shared_ptr<ifx::GameObject>(new ifx::GameObject());
+    arms.debug_points->Add(ifx::RenderObjectFactory().CreateLampObject());
+    arms.debug_points->Add(ifx::RenderObjectFactory().CreateLampObject());
+    arms.debug_points->Add(ifx::RenderObjectFactory().CreateLampObject());
+    arms.debug_points->Add(ifx::RenderObjectFactory().CreateLampObject());
+    arms.debug_points->Add(ifx::RenderObjectFactory().CreateLampObject());
 
     auto puma = std::shared_ptr<Puma>(new Puma(arms));
 

@@ -10,7 +10,7 @@ PumaSimulation::PumaSimulation(
         std::shared_ptr<PumaSimulationCreateParams> params) :
         manipulate_mode_(true){
     Reset(params);
-    Pause();
+    //Pause();
 }
 PumaSimulation::~PumaSimulation(){}
 

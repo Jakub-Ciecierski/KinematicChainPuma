@@ -11,6 +11,9 @@ Puma::Puma(PumaArms& puma_arms) : puma_arms_(puma_arms){
 
     last_effector_position_ = puma_arms.effector.position;
     last_effector_rotation_ = puma_arms.effector.rotation;
+
+    z4_multiplier_ = 1;
+    angle_multiplier_ = 1;
 }
 
 Puma::~Puma(){}
@@ -35,30 +38,69 @@ void Puma::ComputeInverse(){
 PumaState Puma::ComputeOptimalState(){
     auto in = PreperInput();
 
+
+
     auto state1 = ComputeInverse(in, 1);
-    ComputeDirect(state1);
-
-    auto distance1 = ifx::EuclideanDistance(
-            last_effector_position_, puma_arms_.effector.position);
-
     auto state2 = ComputeInverse(in, -1);
-    ComputeDirect(state2);
 
-    auto distance2 = ifx::EuclideanDistance(
-            last_effector_position_, puma_arms_.effector.position);
+    auto frames1 = CalculateDirectFrame(state1);
+    auto frames2 = CalculateDirectFrame(state2);
 
-    if(HasNan(state1) && HasNan(state2))
-        std::cout << "Really bad" << std::endl;
-    if(HasNan(state1))
-        return state2;
-    if(HasNan(state2))
-        return state1;
+    auto decomposition1 = Decompose(frames1.F05);
+    auto decomposition2 = Decompose(frames2.F05);
+
+    auto& current_pos = puma_arms_.effector.position;
+    auto pos1 = decomposition1.position;
+    auto pos2 = decomposition2.position;
+
+    float distance1 = ifx::EuclideanDistance(current_pos, pos1);
+    float distance2 = ifx::EuclideanDistance(current_pos, pos2);
+
     if(distance1 < distance2)
         return state1;
     else
         return state2;
 }
 
+/*
+PumaState Puma::ComputeOptimalState(){
+    auto in = PreperInput();
+
+    auto state1 = ComputeInverse(in, 1);
+    ComputeDirect(state1);
+    auto distance1 = ComputeDistance(state1, state_);
+
+    auto state2 = ComputeInverse(in, -1);
+    ComputeDirect(state2);
+    auto distance2 = ComputeDistance(state2, state_);
+
+    if(HasNan(state1) && HasNan(state2))
+        std::cout << "Really bad" << std::endl;
+
+    std::cout << "d1: " << distance1 << std::endl;
+    std::cout << "d2: " << distance2 << std::endl;
+    std::cout << std::endl;
+
+    if(HasNan(state1)){
+        std::cout << "STATE 2" << std::endl;
+        return state2;
+    }
+    if(HasNan(state2)){
+        std::cout << "STATE 1" << std::endl;
+        return state1;
+    }
+
+    if(distance1 < distance2){
+        //std::cout << "STATE 1" << std::endl;
+        return state1;
+    }
+    else{
+        //std::cout << "STATE 2" << std::endl;
+        return state2;
+    }
+
+}
+*/
 InverseKinematicsInput Puma::PreperInput(){
     InverseKinematicsInput in;
     in.p0 = glm::vec3(0,0,0);
@@ -83,7 +125,7 @@ InverseKinematicsInput Puma::PreperInput(){
                           glm::vec3(0.0f, 0.0f, 1.0f));
     auto r4 = rz4 * ry4 * rx4;
     auto r = glm::mat3(r4);
-
+/*
     r[0].x = glm::degrees(r[0].x);
     r[0].y = glm::degrees(r[0].y);
     r[0].z = glm::degrees(r[0].z);
@@ -99,36 +141,11 @@ InverseKinematicsInput Puma::PreperInput(){
     r[0] = glm::normalize(r[0]);
     r[1] = glm::normalize(r[1]);
     r[2] = glm::normalize(r[2]);
-
+*/
 
     in.x5 = r[0];
     in.y5 = r[1];
     in.z5 = r[2];
-/*
-    std::cout << "r5" << std::endl;
-    ifx::PrintVec3(r5);
-
-    std::cout << "rx" << std::endl;
-    ifx::PrintMat3(rx);
-    std::cout << "ry" << std::endl;
-    ifx::PrintMat3(ry);
-    std::cout << "rz" << std::endl;
-    ifx::PrintMat3(rz);
-    std::cout << "r4" << std::endl;
-    ifx::PrintMat4(r4);
-    std::cout << "r" << std::endl;
-    ifx::PrintMat3(r);
-
-    std::cout << "x5" << std::endl;
-    ifx::PrintVec3(in.x5);
-    std::cout << "y5" << std::endl;
-    ifx::PrintVec3(in.y5);
-    std::cout << "z5" << std::endl;
-    ifx::PrintVec3(in.z5);
-
-    if(std::isnan(in.y5.x))
-        std::cout << "nan" << std::endl;
-*/
 
     in.l1 = puma_arms_.arm1.length;
     in.l3 = puma_arms_.arm3.length;
@@ -137,88 +154,64 @@ InverseKinematicsInput Puma::PreperInput(){
     return in;
 }
 
+PumaState Puma::ComputeInverseAlgeb(InverseKinematicsInput in){
+
+}
+
 PumaState Puma::ComputeInverse(InverseKinematicsInput in, float z4_multiplier){
+    auto state1 = ComputeInverseWithAngleMultiplier(in, z4_multiplier, 1, 1);
+    auto state2 = ComputeInverseWithAngleMultiplier(in, z4_multiplier, -1, 1);
+    auto state3 = ComputeInverseWithAngleMultiplier(in, z4_multiplier, 1, -1);
+    auto state4 = ComputeInverseWithAngleMultiplier(in, z4_multiplier, -1, -1);
+
+    auto frames1 = CalculateDirectFrame(state1);
+    auto frames2 = CalculateDirectFrame(state2);
+
+    auto decomposition1 = Decompose(frames1.F05);
+    auto decomposition2 = Decompose(frames2.F05);
+
+    auto& current_pos = puma_arms_.effector.position;
+    auto pos1 = decomposition1.position;
+    auto pos2 = decomposition2.position;
+
+    float distance1 = ifx::EuclideanDistance(current_pos, pos1);
+    float distance2 = ifx::EuclideanDistance(current_pos, pos2);
+
+    if(distance1 < distance2)
+        return state1;
+    else
+        return state2;
+}
+
+PumaState Puma::ComputeInverseWithAngleMultiplier(InverseKinematicsInput in,
+                                                  float z4_multiplier,
+                                                  float alpha4_multiplier,
+                                                  float alpha3_multiplier){
     const float epsilon = 0.001;
     auto p1 = in.p0;
     auto p2 = in.p0 + (in.l1 * in.y0);
     auto p4 = in.p5 - (in.l4 * in.z5);
-    p4 = epsilon + p4;
-    p2 = epsilon + p2;
 
     // TODO check n == 0;
-    auto n = glm::cross((p4 - p1), (p2 - p1));
-    n = glm::normalize(n);
+    //auto n = glm::normalize(glm::cross((p4 - p1), (p2 - p1)));
+    auto n = glm::normalize(glm::cross((p2 - p1), (p4 - p1)));
 
     auto z4 = ComputeZ4(in.z5, n);
     z4 = glm::normalize(z4);
-    z4 = z4 * z4_multiplier;
-    auto p3 = p4 + (in.l3 * z4);
+    z4 = z4 * z4_multiplier * z4_multiplier_;
+    auto p3 = p4 - (in.l3 * z4);
+    last_z4_ = z4;
 
-    // TODO a1 coords
     PumaState state;
-    state.alpha1 = glm::degrees(atan2(p4.y, p4.x));
-    state.alpha1 += glm::degrees(M_PI_2);
-    //state.alpha1 -= glm::degrees(M_PI);
-    //state.alpha1 = glm::degrees(atan2(p4.x, p4.y));
-    //state.alpha1 += -glm::degrees(M_PI_2);
-    //state.alpha1 = 360 - state.alpha1;
-    //state.alpha1 = -state.alpha1;
-    //state.alpha1 = glm::degrees(atan2(p4.x, p4.z));
-
-    //state.alpha2 = Angle(p2 - p1, p3 - p2) + glm::degrees(M_PI_2);
+    state.alpha1 = glm::degrees(atan2(p4.x, p4.z));
     state.alpha2 = Angle(p2 - p1, p3 - p2) - glm::degrees(M_PI_2);
-    //state.alpha2 += -glm::degrees(M_PI_4);
-    //state.alpha2 += glm::degrees(M_PI);
-    //state.alpha2 = Angle(p3 - p2, p2 - p1) - glm::degrees(M_PI_2);
-
-    //state.alpha3 = Angle(p3 - p2, p4 - p3) + glm::degrees(M_PI_2);
-    state.alpha3 = Angle(p3 - p2, p4 - p3) - glm::degrees(M_PI_2);
-    //state.alpha3 += -glm::degrees(M_PI_4);
-    //state.alpha3 += glm::degrees(M_PI);
-
-    //state.alpha4 = Angle(n, in.z5) + glm::degrees(M_PI_2);
-    //state.alpha4 = Angle(n, in.z5) + glm::degrees(M_PI_2);
-    state.alpha4 = Angle(n, in.z5) + glm::degrees(M_PI_2);
-    //state.alpha4 += -glm::degrees(M_PI);
-    //state.alpha4 = -state.alpha4;
-
+    state.alpha3 = Angle3(p3 - p2, p4 - p3, 1) - glm::degrees(M_PI_2);
+    state.alpha4 = Angle4(n, in.z5, alpha4_multiplier) + glm::degrees(M_PI_2);
     state.alpha5 = Angle(p3 - p4, in.y5);
-    //state.alpha5 += -glm::degrees(M_PI_2);
-
     state.length2 = ifx::Magnitude(p3 - p2);
 
-    // <print>
-/*
-    std::cout << " ------------ State ------------" << std::endl;
-
-    std::cout << "x5" << std::endl;
-    ifx::PrintVec3(in.x5);
-    std::cout << "y5" << std::endl;
-    ifx::PrintVec3(in.y5);
-    std::cout << "z5" << std::endl;
-    ifx::PrintVec3(in.z5);
-    std::cout << "p2" << std::endl;
-    ifx::PrintVec3(p2);
-    std::cout << "p3" << std::endl;
-    ifx::PrintVec3(p3);
-    std::cout << "p4" << std::endl;
-    ifx::PrintVec3(p4);
-    std::cout << "p5" << std::endl;
-    ifx::PrintVec3(in.p5);
-    std::cout << "n" << std::endl;
-    ifx::PrintVec3(n);
-    std::cout << "z4" << std::endl;
-    ifx::PrintVec3(z4);
-    std::cout << "a1: " << state.alpha1 << std::endl;
-    std::cout << "a2: " << state.alpha2 << std::endl;
-    std::cout << "a3: " << state.alpha3 << std::endl;
-    std::cout << "a4: " << state.alpha4 << std::endl;
-    std::cout << "a5: " << state.alpha5 << std::endl;
-    std::cout << "q2: " << state.length2 << std::endl;
-    std::cout << " -------------------------------" << std::endl;
-    std::cout << std::endl;
-*/
-    // </print>
+    ClampState(state);
+    UpdateDebugPoints(p1, p2, p3, p4, in.p5);
 
     return state;
 }
@@ -234,13 +227,12 @@ glm::vec3 Puma::ComputeZ4(const glm::vec3& x, const glm::vec3& n){
     auto x3 = x[2];
 
 /*
-    auto n1 = n[2];
-    auto n2 = n[0];
-    auto n3 = n[1];
-
-    auto x1 = x[2];
-    auto x2 = x[0];
-    auto x3 = x[1];
+    n1 = n[2];
+    n2 = n[0];
+    n3 = n[1];
+    x1 = x[2];
+    x2 = x[0];
+    x3 = x[1];
 */
     auto n1_2 = n1*n1;
     auto n2_2 = n2*n2;
@@ -259,57 +251,84 @@ glm::vec3 Puma::ComputeZ4(const glm::vec3& x, const glm::vec3& n){
     auto z3 = (-n2 * x1 + n1 * x2) / d;
 
     return glm::vec3(z1, z2, z3);
-
-/*
-    float z3_d = n3_2
-                 * (x1_2 + x2_2) - 2
-                                   * n1 * n3 * x1 * x3 - 2 * n2 * x2
-                                                         * (n1 * x1 + n3 * x3)
-                 + n2_2 * (x1_2 + x3_2) + n1_2 * (x2_2 + x3_2);
-    float z2_d = n3_2
-                 * (x1_2 + x2_2) - 2 * n1 * n3 * x1 * x3 - 2 * n2 * x2
-                                                           * (n1 * x1 + n3 * x3)
-                 + n2_2 * (x1_2 + x3_2) + n1_2 * (x2_2 + x3_2);*/
 }
 
-float Puma::Angle(const glm::vec3& v, const glm::vec3& w){
+float Puma::ComputeDistance(const PumaState& state1, const PumaState& state2){
+    float a1 = state1.alpha1 - state2.alpha1;
+    a1 = a1*a1;
+
+    float a2 = state1.alpha2 - state2.alpha2;
+    a2 = a2*a2;
+
+    float a3 = state1.alpha3 - state2.alpha3;
+    a3 = a3*a3;
+    //a3 *= 5;
+
+    float a4 = state1.alpha4 - state2.alpha4;
+    a4 = a4*a4;
+    //a4 *= 5;
+
+    float a5 = state1.alpha5 - state2.alpha5;
+    a5 = a5*a5;
+
+    float a6 = state1.length2 - state2.length2;
+    a6 = a6*a6;
+
+    return sqrt(a1+a2+a3+a4+a5+a6);
+}
+
+float Puma::Angle(const glm::vec3& v, const glm::vec3& w, bool print_info){
     const float epsilon = 0.01;
+
     auto v_norm = glm::normalize(v);
     auto w_norm = glm::normalize(w);
-    //auto v_norm = v;
-    //auto w_norm = w;
+
     auto dot = ifx::dot(v_norm, w_norm);
-    if(dot == 1 || dot == -1){
-        v_norm = glm::normalize(epsilon+v);
-        dot = ifx::dot(v_norm, w_norm);
-    }
-/*
-    if(dot > 1)
-        dot = 1;
-    if(dot < -1)
-        dot = -1;
-    auto cosa = acos(dot);
-*/
+
     auto cross_vw = glm::cross(v_norm, w_norm);
     auto cross_vw_norm = cross_vw;
     auto mag_cross_vw_norm = ifx::Magnitude(cross_vw_norm);
-/*
-    if(mag_cross_vw_norm > 1)
-        mag_cross_vw_norm = 1;
-    if(mag_cross_vw_norm < -1)
-        mag_cross_vw_norm = -1;
-    auto sina = asin(mag_cross_vw_norm);
 
-    auto at = atan2(sina, cosa);
-    if(std::isnan(cosa))
-        std::cout << "nan" << std::endl;
-    if(std::isnan(sina))
-        std::cout << "nan" << std::endl;
-*/
+    float sin_val = ifx::Magnitude(glm::cross(v,w));
+    float cos_val = ifx::dot(v,w);
 
-    //return glm::degrees(atan(mag_cross_vw_norm/dot));
-    return glm::degrees(atan2(mag_cross_vw_norm, dot));
-    //return glm::degrees(at);
+    float cosa = acos(dot);
+
+    if(print_info){
+        if(angle_multiplier_ == -1){
+            //cosa = cosa - M_PI;
+            cosa = -cosa;
+        }
+
+        //std::cout << "acos: " << cosa << std::endl;
+    }
+
+    //float val = atan2(sin_val, cos_val);
+    float val = cosa;
+
+    return glm::degrees(val);
+}
+
+float Puma::Angle3(const glm::vec3& v, const glm::vec3& w, float multiplier){
+    auto v_norm = glm::normalize(v);
+    auto w_norm = glm::normalize(w);
+
+    auto dot = ifx::dot(v_norm, w_norm);
+    float cosa = acos(dot);
+
+    cosa = multiplier * angle_multiplier_ * cosa;
+    return glm::degrees(cosa);
+}
+
+float Puma::Angle4(const glm::vec3& v, const glm::vec3& w, float multiplier){
+    auto v_norm = glm::normalize(v);
+    auto w_norm = glm::normalize(w);
+
+    auto dot = ifx::dot(v_norm, w_norm);
+    float cosa = acos(dot);
+
+    cosa = multiplier * angle_multiplier_ * cosa;
+    return glm::degrees(cosa);
 }
 
 void Puma::ComputeDirect(PumaState& state){
@@ -327,11 +346,11 @@ void Puma::UpdateEffector(glm::mat4& F){
 /*
     puma_arms_.effector.position = decomposition.position;
     puma_arms_.effector.rotation = decomposition.rotation;*/
-
+/*
     puma_arms_.effector.position
             = puma_arms_.effector.render_object->getPosition();
     puma_arms_.effector.rotation
-            = puma_arms_.effector.render_object->getRotation();
+            = puma_arms_.effector.render_object->getRotation();*/
 }
 
 void Puma::UpdateArm1(glm::mat4& F){
@@ -485,3 +504,25 @@ glm::mat4 Puma::Rz(float angle){
                        glm::vec3(0.0f, 0.0f, 1.0f));
 }
 
+void Puma::ClampState(PumaState& state){
+    if(state.alpha1 < 0)
+        state.alpha1 += glm::degrees(2*M_PI);
+    if(state.alpha2 < 0)
+        state.alpha2 += glm::degrees(2*M_PI);
+    if(state.alpha3 < 0)
+        state.alpha3 += glm::degrees(2*M_PI);
+    if(state.alpha4 < 0)
+        state.alpha4 += glm::degrees(2*M_PI);
+    if(state.alpha5 < 0)
+        state.alpha5 += glm::degrees(2*M_PI);
+}
+
+void Puma::UpdateDebugPoints(const glm::vec3& p1, const glm::vec3& p2,
+                             const glm::vec3& p3, const glm::vec3& p4,
+                             const glm::vec3& p5){
+    puma_arms_.debug_points->GetComponents()[0]->moveTo(p1);
+    puma_arms_.debug_points->GetComponents()[1]->moveTo(p2);
+    puma_arms_.debug_points->GetComponents()[2]->moveTo(p3);
+    puma_arms_.debug_points->GetComponents()[3]->moveTo(p4);
+    puma_arms_.debug_points->GetComponents()[4]->moveTo(p5);
+}
