@@ -3,18 +3,20 @@
 
 #include <vr/simulation.h>
 #include <math/math_ifx.h>
+#include <puma.h>
 
 #include <memory>
 
-class Puma;
+//class Puma;
 
 namespace ifx{
 class RenderObject;
 }
 
 struct PumaSimulationCreateParams{
-    float simulation_length = 1000;
+    float simulation_length = 10;
     std::shared_ptr<Puma> puma = nullptr;
+    std::shared_ptr<Puma> puma_basic = nullptr;
 
     std::shared_ptr<ifx::RenderObject> destination_axis;
 };
@@ -39,6 +41,8 @@ public:
 
     virtual void Update() override;
     void Reset(std::shared_ptr<PumaSimulationCreateParams> params);
+protected:
+    virtual bool UpdateTime() override;
 
 private:
     void ManipulatePuma();
@@ -48,11 +52,18 @@ private:
     glm::vec3 InterpolateRotation(float t);
 
     void ResetInterpolationData(std::shared_ptr<PumaSimulationCreateParams> params);
+    void ResetInterpolationData();
+
+    void InterpolatePumaBasic();
 
     std::shared_ptr<Puma> puma_;
+    std::shared_ptr<Puma> puma_basic_;
 
     std::shared_ptr<ifx::RenderObject> destination_axis_;
     InterpolationData interpolation_data_;
+
+    PumaState start_state_;
+    PumaState end_state_;
 
     // True if is in manipulate mode
     bool manipulate_mode_;

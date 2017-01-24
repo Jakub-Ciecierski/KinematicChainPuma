@@ -8,7 +8,7 @@
 #include <puma.h>
 #include <graphics/factory/render_object_factory.h>
 
-PumaFactory::PumaFactory(){}
+PumaFactory::PumaFactory() : id_(0){}
 PumaFactory::~PumaFactory(){}
 
 std::shared_ptr<ifx::GameObject> PumaFactory::CreateAxis(){
@@ -24,8 +24,10 @@ std::shared_ptr<ifx::GameObject> PumaFactory::CreateAxis(){
     return game_object;
 }
 
-std::shared_ptr<Puma> PumaFactory::CreatePuma(){
-    auto params = std::shared_ptr<PumaCreateParams>(new PumaCreateParams());
+std::shared_ptr<Puma> PumaFactory::CreatePuma(
+        std::shared_ptr<PumaCreateParams> params,
+        int id){
+    id_ = id;
     return CreatePuma(params);
 }
 
@@ -191,7 +193,8 @@ PumaEffector PumaFactory::CreatePumaEffector(
 std::shared_ptr<ifx::RenderObject> PumaFactory::CreatePumaArm(
         std::shared_ptr<ifx::Model> model){
     auto render_object = std::shared_ptr<ifx::RenderObject>(
-            new ifx::RenderObject(ObjectID(0), model));
+            new ifx::RenderObject(ObjectID(id_), model));
+    render_object->id().key_id(id_);
     render_object->addProgram(ifx::ProgramFactory().LoadMainProgram());
 
     return render_object;
@@ -221,8 +224,9 @@ std::shared_ptr<ifx::Model> PumaFactory::CreatePumaArmModelGreen(){
 
 std::shared_ptr<ifx::RenderObject> PumaFactory::CreatePumaArmConnector(){
     auto render_object = std::shared_ptr<ifx::RenderObject>(
-            new ifx::RenderObject(ObjectID(0),
+            new ifx::RenderObject(ObjectID(id_),
                                   CreatePumaArmModelConnector()));
+    render_object->id().key_id(id_);
     render_object->addProgram(ifx::ProgramFactory().LoadMainProgram());
     render_object->scale(1.2);
     return render_object;
@@ -238,8 +242,10 @@ std::shared_ptr<ifx::Model> PumaFactory::CreatePumaArmModelConnector(){
 
 std::shared_ptr<ifx::RenderObject> PumaFactory::CreatePumaEffector(){
     auto render_object = std::shared_ptr<ifx::RenderObject>(
-            new ifx::RenderObject(ObjectID(0),
+            new ifx::RenderObject(ObjectID(id_),
                                   CreateAxisModel()));
+    render_object->id().key_id(id_);
+
     render_object->addProgram(ifx::ProgramFactory().LoadMainProgram());
     render_object->scale(0.2);
     return render_object;

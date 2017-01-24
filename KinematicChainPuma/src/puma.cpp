@@ -38,8 +38,6 @@ void Puma::ComputeInverse(){
 PumaState Puma::ComputeOptimalState(){
     auto in = PreperInput();
 
-
-
     auto state1 = ComputeInverse(in, 1);
     auto state2 = ComputeInverse(in, -1);
 
@@ -159,10 +157,9 @@ PumaState Puma::ComputeInverseAlgeb(InverseKinematicsInput in){
 }
 
 PumaState Puma::ComputeInverse(InverseKinematicsInput in, float z4_multiplier){
+    // First choose proper alpha4
     auto state1 = ComputeInverseWithAngleMultiplier(in, z4_multiplier, 1, 1);
     auto state2 = ComputeInverseWithAngleMultiplier(in, z4_multiplier, -1, 1);
-    auto state3 = ComputeInverseWithAngleMultiplier(in, z4_multiplier, 1, -1);
-    auto state4 = ComputeInverseWithAngleMultiplier(in, z4_multiplier, -1, -1);
 
     auto frames1 = CalculateDirectFrame(state1);
     auto frames2 = CalculateDirectFrame(state2);
@@ -181,6 +178,68 @@ PumaState Puma::ComputeInverse(InverseKinematicsInput in, float z4_multiplier){
         return state1;
     else
         return state2;
+
+
+    // Choose alpha3
+    float a4_multiplier;
+    if(distance1 < distance2){
+        a4_multiplier = 1;
+        auto state11
+                = ComputeInverseWithAngleMultiplier(in, z4_multiplier, 1, 1);
+        auto state12
+                = ComputeInverseWithAngleMultiplier(in, z4_multiplier, 1, -1);
+
+        float distance11 = fabs(state11.alpha3 - state_.alpha3);
+        float distance12 = fabs(state12.alpha3 - state_.alpha3);
+
+        distance11 = AngleDistance(state11.alpha3, state_.alpha3);
+        distance12 = AngleDistance(state12.alpha3, state_.alpha3);
+
+        if(distance11 > 180 || distance12 > 180){
+            std::cout << "old:  " << state_.alpha3 << std::endl;
+            std::cout << "new1: " << state11.alpha3 << std::endl;
+            std::cout << "new2: " << state12.alpha3 << std::endl;
+            std::cout << "d1:   " << distance11 << std::endl;
+            std::cout << "d2:   " << distance12 << std::endl;
+            std::cout << std::endl;
+        }
+
+        if(distance11 < distance12){
+            return state11;
+        }
+        else{
+            return state12;
+        }
+    }else{
+        a4_multiplier = -1;
+        auto state11
+                = ComputeInverseWithAngleMultiplier(in, z4_multiplier, -1, 1);
+        auto state12
+                = ComputeInverseWithAngleMultiplier(in, z4_multiplier, -1, -1);
+
+        float distance11 = fabs(state11.alpha3 - state_.alpha3);
+        float distance12 = fabs(state12.alpha3 - state_.alpha3);
+
+        distance11 = AngleDistance(state11.alpha3, state_.alpha3);
+        distance12 = AngleDistance(state12.alpha3, state_.alpha3);
+
+        if(distance11 > 180 || distance12 > 180){
+            std::cout << "old:  " << state_.alpha3 << std::endl;
+            std::cout << "new1: " << state11.alpha3 << std::endl;
+            std::cout << "new2: " << state12.alpha3 << std::endl;
+            std::cout << "d1:   " << distance11 << std::endl;
+            std::cout << "d2:   " << distance12 << std::endl;
+            std::cout << std::endl;
+        }
+
+        if(distance11 < distance12){
+            return state11;
+        }
+        else{
+            return state12;
+        }
+    }
+
 }
 
 PumaState Puma::ComputeInverseWithAngleMultiplier(InverseKinematicsInput in,
@@ -205,7 +264,8 @@ PumaState Puma::ComputeInverseWithAngleMultiplier(InverseKinematicsInput in,
     PumaState state;
     state.alpha1 = glm::degrees(atan2(p4.x, p4.z));
     state.alpha2 = Angle(p2 - p1, p3 - p2) - glm::degrees(M_PI_2);
-    state.alpha3 = Angle3(p3 - p2, p4 - p3, 1) - glm::degrees(M_PI_2);
+    state.alpha3 = Angle3(p3 - p2, p4 - p3, alpha3_multiplier)
+                   - glm::degrees(M_PI_2);
     state.alpha4 = Angle4(n, in.z5, alpha4_multiplier) + glm::degrees(M_PI_2);
     state.alpha5 = Angle(p3 - p4, in.y5);
     state.length2 = ifx::Magnitude(p3 - p2);
@@ -327,7 +387,7 @@ float Puma::Angle4(const glm::vec3& v, const glm::vec3& w, float multiplier){
     auto dot = ifx::dot(v_norm, w_norm);
     float cosa = acos(dot);
 
-    cosa = multiplier * angle_multiplier_ * cosa;
+    cosa = multiplier * cosa;
     return glm::degrees(cosa);
 }
 
@@ -525,4 +585,9 @@ void Puma::UpdateDebugPoints(const glm::vec3& p1, const glm::vec3& p2,
     puma_arms_.debug_points->GetComponents()[2]->moveTo(p3);
     puma_arms_.debug_points->GetComponents()[3]->moveTo(p4);
     puma_arms_.debug_points->GetComponents()[4]->moveTo(p5);
+}
+
+float Puma::AngleDistance(float angle1, float angle2) {
+    return 180.0 - std::fabs(
+            std::fmod(std::fabs(angle1 - angle2), 360.0) - 180.0);
 }

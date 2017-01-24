@@ -25,8 +25,9 @@ public:
 
     std::shared_ptr<ifx::GameObject> CreateAxis();
 
-    std::shared_ptr<Puma> CreatePuma();
     std::shared_ptr<Puma> CreatePuma(std::shared_ptr<PumaCreateParams> params);
+    std::shared_ptr<Puma> CreatePuma(std::shared_ptr<PumaCreateParams> params,
+                                     int id);
 private:
     std::vector<std::shared_ptr<ifx::Model>> CreateAxisModel();
 
@@ -47,6 +48,7 @@ private:
 
     std::shared_ptr<ifx::RenderObject> CreatePumaEffector();
 
+    int id_;
 };
 
 

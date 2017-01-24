@@ -114,13 +114,15 @@ public:
     void ComputeInverse();
 
     void ComputeDirect();
+
+    PumaState ComputeOptimalState();
 private:
     // <Inverse>
     InverseKinematicsInput PreperInput();
 
     PumaState ComputeInverseAlgeb(InverseKinematicsInput in);
 
-    PumaState ComputeOptimalState();
+
     PumaState ComputeInverse(InverseKinematicsInput in,
                              float z4_multiplier);
     PumaState ComputeInverseWithAngleMultiplier(
@@ -131,6 +133,7 @@ private:
 
     glm::vec3 ComputeZ4(const glm::vec3& x5, const glm::vec3& n);
     float ComputeDistance(const PumaState& state1, const PumaState& state2);
+    float AngleDistance(float angle1, float angle2);
     /**
      * In degrees
      */

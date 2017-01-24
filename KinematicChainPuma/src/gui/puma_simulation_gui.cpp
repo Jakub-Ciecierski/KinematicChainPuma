@@ -113,8 +113,14 @@ void PumaSimulationGUI::RenderPumaParamsState(){
 void PumaSimulationGUI::Reset(){
     if(simulation_params_->puma)
         scene_->Remove(simulation_params_->puma->game_object());
-    simulation_params_->puma = PumaFactory().CreatePuma(puma_params_);
+    if(simulation_params_->puma_basic)
+        scene_->Remove(simulation_params_->puma_basic->game_object());
+
+    simulation_params_->puma = PumaFactory().CreatePuma(puma_params_, -2);
+    simulation_params_->puma_basic = PumaFactory().CreatePuma(puma_params_, -1);
+
     scene_->Add(simulation_params_->puma->game_object());
+    scene_->Add(simulation_params_->puma_basic->game_object());
 
     simulation_->Reset(simulation_params_);
 }

@@ -70,8 +70,12 @@ void AddSimulation(std::shared_ptr<ifx::Game> game){
 
     simulation_params->destination_axis
             = std::static_pointer_cast<ifx::RenderObject>(axis_render[0]);
-    simulation_params->puma = PumaFactory().CreatePuma();
+    auto params = std::shared_ptr<PumaCreateParams>(new PumaCreateParams());
+    simulation_params->puma = PumaFactory().CreatePuma(params, -2);
+    simulation_params->puma_basic = PumaFactory().CreatePuma(params, -1);
+
     game->scene()->Add(simulation_params->puma->game_object());
+    game->scene()->Add(simulation_params->puma_basic->game_object());
     game->scene()->Add(simulation_params->puma->puma_arms().debug_points);
 
     auto simulation = std::shared_ptr<PumaSimulation>(
