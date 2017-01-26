@@ -24,6 +24,13 @@ void Puma::ComputeDirect(){
     UpdateGameObject();
 }
 
+void Puma::ComputeDirectAndUpdate(PumaState& state){
+    ComputeDirect(state, true);
+
+    state_.length2 = state.length2;
+    UpdateGameObject();
+}
+
 void Puma::ComputeInverse(){
     state_ = ComputeOptimalState();
 
@@ -189,11 +196,8 @@ PumaState Puma::ComputeInverse(InverseKinematicsInput in, float z4_multiplier){
         auto state12
                 = ComputeInverseWithAngleMultiplier(in, z4_multiplier, 1, -1);
 
-        float distance11 = fabs(state11.alpha3 - state_.alpha3);
-        float distance12 = fabs(state12.alpha3 - state_.alpha3);
-
-        distance11 = AngleDistance(state11.alpha3, state_.alpha3);
-        distance12 = AngleDistance(state12.alpha3, state_.alpha3);
+        float distance11 = AngleDistance(state11.alpha3, state_.alpha3);
+        float distance12 = AngleDistance(state12.alpha3, state_.alpha3);
 
         if(distance11 > 180 || distance12 > 180){
             std::cout << "old:  " << state_.alpha3 << std::endl;
@@ -217,11 +221,8 @@ PumaState Puma::ComputeInverse(InverseKinematicsInput in, float z4_multiplier){
         auto state12
                 = ComputeInverseWithAngleMultiplier(in, z4_multiplier, -1, -1);
 
-        float distance11 = fabs(state11.alpha3 - state_.alpha3);
-        float distance12 = fabs(state12.alpha3 - state_.alpha3);
-
-        distance11 = AngleDistance(state11.alpha3, state_.alpha3);
-        distance12 = AngleDistance(state12.alpha3, state_.alpha3);
+        float distance11 = AngleDistance(state11.alpha3, state_.alpha3);
+        float distance12 = AngleDistance(state12.alpha3, state_.alpha3);
 
         if(distance11 > 180 || distance12 > 180){
             std::cout << "old:  " << state_.alpha3 << std::endl;
@@ -391,21 +392,22 @@ float Puma::Angle4(const glm::vec3& v, const glm::vec3& w, float multiplier){
     return glm::degrees(cosa);
 }
 
-void Puma::ComputeDirect(PumaState& state){
+void Puma::ComputeDirect(PumaState& state, bool update_effector){
     auto frames = CalculateDirectFrame(state);
 
     UpdateArm1(frames.F01);
     UpdateArm2(frames.F02, state_.length2);
     UpdateArm3(frames.F03);
     UpdateArm4(frames.F04);
-    UpdateEffector(frames.F05);
+    if(update_effector)
+        UpdateEffector(frames.F05);
 }
 
 void Puma::UpdateEffector(glm::mat4& F){
     auto decomposition = Decompose(F);
-/*
+
     puma_arms_.effector.position = decomposition.position;
-    puma_arms_.effector.rotation = decomposition.rotation;*/
+    puma_arms_.effector.rotation = decomposition.rotation;
 /*
     puma_arms_.effector.position
             = puma_arms_.effector.render_object->getPosition();

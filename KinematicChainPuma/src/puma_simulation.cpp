@@ -15,21 +15,22 @@ PumaSimulation::PumaSimulation(
 PumaSimulation::~PumaSimulation(){}
 
 void PumaSimulation::Update(){
-    /*
-    if(manipulate_mode_){
-        ManipulatePuma();
-        ResetInterpolationData();
-        puma_->ComputeInverse();
-    }
-*/
     if(!UpdateTime())
         return;
 
-    InterpolatePuma();
-    ManipulatePuma();
-    puma_->ComputeInverse();
+    if(manipulate_mode_){
+        ResetInterpolationData();
+        ManipulatePuma();
+        puma_->ComputeInverse();
+    }else{
+        // Right screen
+        InterpolatePuma();
 
-    InterpolatePumaBasic();
+        // Left screen
+        InterpolatePumaBasic();
+    }
+
+
 }
 
 void PumaSimulation::Reset(std::shared_ptr<PumaSimulationCreateParams> params){
@@ -62,6 +63,8 @@ void PumaSimulation::InterpolatePuma(){
 
     effector.render_object->moveTo(effector.position);
     effector.render_object->rotateTo(effector.rotation);
+
+    puma_->ComputeInverse();
 }
 
 glm::vec3 PumaSimulation::InterpolatePosition(float t){
@@ -87,7 +90,7 @@ glm::vec3 PumaSimulation::InterpolateRotation(float t){
 void PumaSimulation::ResetInterpolationData(
         std::shared_ptr<PumaSimulationCreateParams> params){
     destination_axis_ = params->destination_axis;
-    ResetInterpolationData();
+    //ResetInterpolationData();
 }
 
 void PumaSimulation::ResetInterpolationData(){
@@ -135,7 +138,8 @@ bool PumaSimulation::UpdateTime(){
     }
     double elapsed = time_data_.current_time - time_data_.last_time;
     time_data_.time_since_last_update += elapsed;
-    time_data_.total_time += elapsed;
+    if(!manipulate_mode_)
+        time_data_.total_time += elapsed;
     time_data_.last_time = time_data_.current_time;
 
     if(time_data_.time_since_last_update >= time_data_.time_delta){
@@ -145,16 +149,37 @@ bool PumaSimulation::UpdateTime(){
 }
 
 void PumaSimulation::InterpolatePumaBasic(){
-    /*
-    glm::quat q1 = glm::normalize(glm::quat(glm::radians(start_state_.alpha1)));
-    q1 = glm::normalize(q1);
+    float t = time_data_.total_time / time_data_.simulation_length;
+    if(t > 1.0)
+        return;
 
-    glm::quat q;
+    float diff1 = end_state_.alpha1 - start_state_.alpha1;
+    float diff2 = end_state_.alpha2 - start_state_.alpha2;
+    float diff3 = end_state_.alpha3 - start_state_.alpha3;
+    float diff4 = end_state_.alpha4 - start_state_.alpha4;
+    float diff5 = end_state_.alpha5 - start_state_.alpha5;
+    float diff_length = end_state_.length2 - start_state_.length2;
+    ClampDiffAngle(diff1);
 
-    q = glm::slerp(interpolation_data_.rotate_start,
-                   interpolation_data_.rotate_end, t);
-    q = glm::normalize(q);
+    ClampDiffAngle(diff2);
+    ClampDiffAngle(diff3);
+    ClampDiffAngle(diff4);
+    ClampDiffAngle(diff5);
 
-    glm::vec3 euler = glm::degrees(glm::eulerAngles(q))*/
+    PumaState state;
+    state.alpha1 = start_state_.alpha1 + diff1 * t;
+    state.alpha2 = start_state_.alpha2 + diff2 * t;
+    state.alpha3 = start_state_.alpha3 + diff3 * t;
+    state.alpha4 = start_state_.alpha4 + diff4 * t;
+    state.alpha5 = start_state_.alpha5 + diff5 * t;
+    state.length2 = start_state_.length2 + diff_length * t;
 
+    puma_basic_->ComputeDirectAndUpdate(state);
+}
+
+void PumaSimulation::ClampDiffAngle(float& diff){
+    if(diff > 180)
+        diff = -(360 - diff);
+    if(diff < -180)
+        diff = (360 + diff);
 }

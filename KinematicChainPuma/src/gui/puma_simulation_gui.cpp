@@ -15,6 +15,7 @@ PumaSimulationGUI::PumaSimulationGUI(
     simulation_params_ = std::shared_ptr<PumaSimulationCreateParams>
             (new PumaSimulationCreateParams());
     simulation_params_->puma = simulation_->puma();
+    simulation_params_->puma_basic = simulation_->puma_basic();
     simulation_params_->destination_axis = simulation_->destination_axis();
 
     puma_params_ = std::shared_ptr<PumaCreateParams>(new PumaCreateParams());

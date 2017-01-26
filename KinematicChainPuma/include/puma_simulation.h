@@ -35,6 +35,7 @@ public:
     ~PumaSimulation();
 
     std::shared_ptr<Puma> puma() {return puma_;}
+    std::shared_ptr<Puma> puma_basic() {return puma_basic_;}
     std::shared_ptr<ifx::RenderObject> destination_axis(){
         return destination_axis_;}
     bool* manipulate_mode(){return &manipulate_mode_;}
@@ -55,6 +56,7 @@ private:
     void ResetInterpolationData();
 
     void InterpolatePumaBasic();
+    void ClampDiffAngle(float& angle);
 
     std::shared_ptr<Puma> puma_;
     std::shared_ptr<Puma> puma_basic_;

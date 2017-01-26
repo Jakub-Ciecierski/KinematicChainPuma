@@ -114,6 +114,7 @@ public:
     void ComputeInverse();
 
     void ComputeDirect();
+    void ComputeDirectAndUpdate(PumaState& state);
 
     PumaState ComputeOptimalState();
 private:
@@ -151,7 +152,7 @@ private:
      * Direct solution.
      * Given state, compute effector position.
      */
-    void ComputeDirect(PumaState& state);
+    void ComputeDirect(PumaState& state, bool update_effector = false);
     PumaFrames CalculateDirectFrame(PumaState& state);
 
     void UpdateEffector(glm::mat4& F);
