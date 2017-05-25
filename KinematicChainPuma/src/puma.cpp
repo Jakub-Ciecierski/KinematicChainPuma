@@ -6,7 +6,8 @@
 #include <math/print_math.h>
 #include <iostream>
 
-Puma::Puma(PumaArms& puma_arms) : puma_arms_(puma_arms){
+Puma::Puma(PumaArms &puma_arms) : puma_arms_(puma_arms),
+                                  last_p3_(INIT) {
     state_.length2 = puma_arms_.arm2.length;
 
     last_effector_position_ = puma_arms.effector.position;
@@ -41,7 +42,7 @@ void Puma::ComputeInverse(){
 
     UpdateGameObject();
 }
-
+/*
 PumaState Puma::ComputeOptimalState(){
     auto in = PreperInput();
 
@@ -65,6 +66,77 @@ PumaState Puma::ComputeOptimalState(){
         return state1;
     else
         return state2;
+}
+*/
+
+PumaState Puma::ComputeOptimalState(float z_multiplier) {
+    auto in = PreperInput();
+
+    auto state = ComputeInverse(in, z_multiplier);
+
+    return state;
+}
+
+PumaState Puma::ComputeOptimalState(){
+    auto in = PreperInput();
+
+    auto state1 = ComputeInverse(in, 1);
+    auto p3_1 = current_p3_;
+    auto distance1 = ifx::EuclideanDistance(p3_1, last_p3_);
+
+    auto state2 = ComputeInverse(in, -1);
+    auto p3_2 = current_p3_;
+    auto distance2 = ifx::EuclideanDistance(p3_2, last_p3_);
+
+    if (last_p3_ == INIT) {
+        last_p3_ = p3_2;
+        puma_arms_.debug_points->GetComponents()[2]->moveTo(p3_2);
+        return state2;
+    }
+
+    if(distance1 < distance2) {
+        last_p3_ = p3_1;
+        puma_arms_.debug_points->GetComponents()[2]->moveTo(p3_1);
+        return state1;
+    } else {
+        last_p3_ = p3_2;
+        puma_arms_.debug_points->GetComponents()[2]->moveTo(p3_2);
+        return state2;
+    }
+
+    /*
+    ComputeDirect(state1);
+    auto distance1 = ComputeDistance(state1, state_);
+
+    auto state2 = ComputeInverse(in, -1);
+    ComputeDirect(state2);
+    auto distance2 = ComputeDistance(state2, state_);
+
+    if(HasNan(state1) && HasNan(state2))
+        std::cout << "Really bad" << std::endl;
+
+    std::cout << "d1: " << distance1 << std::endl;
+    std::cout << "d2: " << distance2 << std::endl;
+    std::cout << std::endl;
+
+    if(HasNan(state1)){
+        std::cout << "STATE 2" << std::endl;
+        return state2;
+    }
+    if(HasNan(state2)){
+        std::cout << "STATE 1" << std::endl;
+        return state1;
+    }
+
+    if(distance1 < distance2){
+        std::cout << "STATE 1" << std::endl;
+        return state1;
+    }
+    else{
+        std::cout << "STATE 2" << std::endl;
+        return state2;
+    }*/
+
 }
 
 /*
@@ -96,11 +168,11 @@ PumaState Puma::ComputeOptimalState(){
     }
 
     if(distance1 < distance2){
-        //std::cout << "STATE 1" << std::endl;
+        std::cout << "STATE 1" << std::endl;
         return state1;
     }
     else{
-        //std::cout << "STATE 2" << std::endl;
+        std::cout << "STATE 2" << std::endl;
         return state2;
     }
 
@@ -129,6 +201,7 @@ InverseKinematicsInput Puma::PreperInput(){
                           glm::radians(r5.z),
                           glm::vec3(0.0f, 0.0f, 1.0f));
     auto r4 = rz4 * ry4 * rx4;
+    //auto r4 = rx4 * ry4 * rz4;
     auto r = glm::mat3(r4);
 /*
     r[0].x = glm::degrees(r[0].x);
@@ -151,7 +224,12 @@ InverseKinematicsInput Puma::PreperInput(){
     in.x5 = r[0];
     in.y5 = r[1];
     in.z5 = r[2];
-
+/*
+    ifx::PrintVec3(in.x5);
+    ifx::PrintVec3(in.y5);
+    ifx::PrintVec3(in.z5);
+    std::cout << std::endl;
+*/
     in.l1 = puma_arms_.arm1.length;
     in.l3 = puma_arms_.arm3.length;
     in.l4 = puma_arms_.arm4.length;
@@ -180,6 +258,11 @@ PumaState Puma::ComputeInverse(InverseKinematicsInput in, float z4_multiplier){
 
     float distance1 = ifx::EuclideanDistance(current_pos, pos1);
     float distance2 = ifx::EuclideanDistance(current_pos, pos2);
+    //auto distance1 = ComputeDistance(state1, state_);
+    //auto distance2 = ComputeDistance(state2, state_);
+
+
+    //return state1;
 
     if(distance1 < distance2)
         return state1;
@@ -253,21 +336,23 @@ PumaState Puma::ComputeInverseWithAngleMultiplier(InverseKinematicsInput in,
     auto p4 = in.p5 - (in.l4 * in.z5);
 
     // TODO check n == 0;
-    //auto n = glm::normalize(glm::cross((p4 - p1), (p2 - p1)));
-    auto n = glm::normalize(glm::cross((p2 - p1), (p4 - p1)));
+    auto n = glm::normalize(glm::cross((p4 - p1), (p2 - p1)));
+
+    // TODO check if dot(n, in.z5) == 1
 
     auto z4 = ComputeZ4(in.z5, n);
-    z4 = glm::normalize(z4);
     z4 = z4 * z4_multiplier * z4_multiplier_;
     auto p3 = p4 - (in.l3 * z4);
+    current_p3_ = p3;
     last_z4_ = z4;
+
+    auto p4p3 = glm::normalize(p4 - p3);
 
     PumaState state;
     state.alpha1 = glm::degrees(atan2(p4.x, p4.z));
-    state.alpha2 = Angle(p2 - p1, p3 - p2) - glm::degrees(M_PI_2);
-    state.alpha3 = Angle3(p3 - p2, p4 - p3, alpha3_multiplier)
-                   - glm::degrees(M_PI_2);
-    state.alpha4 = Angle4(n, in.z5, alpha4_multiplier) + glm::degrees(M_PI_2);
+    state.alpha2 = AngleNormal(p2 - p1, p3 - p2, n) - glm::degrees(M_PI_2);
+    state.alpha3 = AngleNormal(p3 - p2, p4 - p3, n) - glm::degrees(M_PI_2);
+    state.alpha4 = AngleNormal(n, in.z5, p4p3) - glm::degrees(M_PI_2);
     state.alpha5 = Angle(p3 - p4, in.y5);
     state.length2 = ifx::Magnitude(p3 - p2);
 
@@ -278,7 +363,6 @@ PumaState Puma::ComputeInverseWithAngleMultiplier(InverseKinematicsInput in,
 }
 
 glm::vec3 Puma::ComputeZ4(const glm::vec3& x, const glm::vec3& n){
-
     auto n1 = n[0];
     auto n2 = n[1];
     auto n3 = n[2];
@@ -287,14 +371,6 @@ glm::vec3 Puma::ComputeZ4(const glm::vec3& x, const glm::vec3& n){
     auto x2 = x[1];
     auto x3 = x[2];
 
-/*
-    n1 = n[2];
-    n2 = n[0];
-    n3 = n[1];
-    x1 = x[2];
-    x2 = x[0];
-    x3 = x[1];
-*/
     auto n1_2 = n1*n1;
     auto n2_2 = n2*n2;
     auto n3_2 = n3*n3;
@@ -311,10 +387,25 @@ glm::vec3 Puma::ComputeZ4(const glm::vec3& x, const glm::vec3& n){
     auto z2 = (n3 * x1 - n1 * x3) / d;
     auto z3 = (-n2 * x1 + n1 * x2) / d;
 
-    return glm::vec3(z1, z2, z3);
+    return glm::normalize(glm::vec3(z1, z2, z3));
 }
 
 float Puma::ComputeDistance(const PumaState& state1, const PumaState& state2){
+    float a1 = AngleDistance(state1.alpha1, state2.alpha1);
+    float a2 = AngleDistance(state1.alpha2, state2.alpha2);
+    float a3 = AngleDistance(state1.alpha3, state2.alpha3);
+    float a4 = AngleDistance(state1.alpha4, state2.alpha4);
+    float a5 = AngleDistance(state1.alpha5, state2.alpha5);
+    //float a6 = state1.length2 - state2.length2;
+    //a6 = a6*a6;
+
+    return a1+a2+a3+a4+a5;
+    //return sqrt(a1+a2+a3+a4+a5+a6);
+}
+
+/*
+float Puma::ComputeDistance(const PumaState& state1, const PumaState& state2){
+    //float a1 = AngleDistance(state1.alpha1, state2.alpha1);
     float a1 = state1.alpha1 - state2.alpha1;
     a1 = a1*a1;
 
@@ -337,7 +428,76 @@ float Puma::ComputeDistance(const PumaState& state1, const PumaState& state2){
 
     return sqrt(a1+a2+a3+a4+a5+a6);
 }
+*/
 
+float Puma::Angle(const glm::vec3& v, const glm::vec3& w, bool print_info){
+    const float epsilon = 0.01;
+
+    auto v_norm = glm::normalize(v);
+    auto w_norm = glm::normalize(w);
+
+    auto dot = ifx::dot(v_norm, w_norm);
+
+    float cosa = acos(dot);
+    if(print_info)
+        cosa = angle_multiplier_ * cosa;
+
+    return glm::degrees(cosa);
+
+
+    auto cross_vw = (glm::cross(v_norm, w_norm));
+    auto mag_cross_vw_norm = ifx::Magnitude(cross_vw);
+/*
+    if (dot >= 0) {
+        if(print_info)
+            std::cout << "dot >= 0" << std::endl;
+        return glm::degrees(asin(mag_cross_vw_norm));
+    } else {
+        if(print_info)
+            std::cout << "dot < 0" << std::endl;
+        return glm::degrees(M_PI - asin(mag_cross_vw_norm));
+    }
+*/
+
+
+    auto val = 2 * atan2(ifx::Magnitude(v_norm - w_norm),
+                         ifx::Magnitude(v_norm + w_norm));
+    //return glm::degrees(val);
+
+    //return glm::degrees(atan2(mag_cross_vw_norm, dot));
+    return glm::degrees(atan2(mag_cross_vw_norm, dot));
+
+    /**
+     * http://stackoverflow.com/questions/21483999/using-atan2-to-find-angle-between-two-vectors
+     *
+     * https://www.mathworks.com/matlabcentral/answers/16243-angle-between-two-vectors-in-3d?requestedDomain=www.mathworks.com
+     *
+     * https://math.stackexchange.com/questions/1143354/numerically-stable-method-for-angle-between-3d-vectors/1782769
+     *
+     *
+     */
+}
+
+float Puma::AngleNormal(const glm::vec3 &v, const glm::vec3 &w,
+                        const glm::vec3 &normal) {
+
+    const float epsilon = 0.01;
+
+    auto v_norm = glm::normalize(v);
+    auto w_norm = glm::normalize(w);
+
+    auto dot = ifx::dot(v_norm, w_norm);
+    auto cross = glm::cross(v_norm, w_norm);
+    float cosa = acos(dot); // [0, pi]
+
+    if(ifx::dot(normal, cross) > 0)
+        cosa = -cosa;
+
+    return glm::degrees(cosa);
+}
+
+
+/*
 float Puma::Angle(const glm::vec3& v, const glm::vec3& w, bool print_info){
     const float epsilon = 0.01;
 
@@ -355,6 +515,9 @@ float Puma::Angle(const glm::vec3& v, const glm::vec3& w, bool print_info){
 
     float cosa = acos(dot);
 
+
+
+
     if(print_info){
         if(angle_multiplier_ == -1){
             //cosa = cosa - M_PI;
@@ -368,7 +531,7 @@ float Puma::Angle(const glm::vec3& v, const glm::vec3& w, bool print_info){
     float val = cosa;
 
     return glm::degrees(val);
-}
+}*/
 
 float Puma::Angle3(const glm::vec3& v, const glm::vec3& w, float multiplier){
     auto v_norm = glm::normalize(v);
@@ -567,6 +730,7 @@ glm::mat4 Puma::Rz(float angle){
 }
 
 void Puma::ClampState(PumaState& state){
+
     if(state.alpha1 < 0)
         state.alpha1 += glm::degrees(2*M_PI);
     if(state.alpha2 < 0)
