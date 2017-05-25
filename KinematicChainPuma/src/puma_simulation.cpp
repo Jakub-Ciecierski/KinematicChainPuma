@@ -29,8 +29,6 @@ void PumaSimulation::Update(){
         // Left screen
         InterpolatePumaBasic();
     }
-
-
 }
 
 void PumaSimulation::Reset(std::shared_ptr<PumaSimulationCreateParams> params){
@@ -120,7 +118,7 @@ void PumaSimulation::ResetInterpolationData(){
             = interpolation_data_.position_end;
     puma_basic_->puma_arms().effector.rotation
             = destination_axis_->getRotation();
-    end_state_ = puma_basic_->ComputeOptimalState();
+    end_state_ = puma_basic_->ComputeOptimalState(-1);
 
     // Reset
     puma_basic_->puma_arms().effector.position
@@ -175,6 +173,8 @@ void PumaSimulation::InterpolatePumaBasic(){
     state.length2 = start_state_.length2 + diff_length * t;
 
     puma_basic_->ComputeDirectAndUpdate(state);
+    //puma_basic_->ComputeDirectAndUpdate(end_state_);
+
 }
 
 void PumaSimulation::ClampDiffAngle(float& diff){

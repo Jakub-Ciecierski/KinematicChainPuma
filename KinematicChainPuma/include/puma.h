@@ -91,6 +91,14 @@ struct InverseKinematicsInput{
  * Y : X
  * Z : Y
  */
+
+/**
+ * IFX : Paper
+ * X : Y
+ * Y : Z
+ * Z : X
+ *
+ */
 class Puma {
 public:
 
@@ -116,6 +124,7 @@ public:
     void ComputeDirect();
     void ComputeDirectAndUpdate(PumaState& state);
 
+    PumaState ComputeOptimalState(float z_multiplier);
     PumaState ComputeOptimalState();
 private:
     // <Inverse>
@@ -139,6 +148,9 @@ private:
      * In degrees
      */
     float Angle(const glm::vec3& v, const glm::vec3& w, bool info = false);
+
+    float AngleNormal(const glm::vec3 &v, const glm::vec3 &w,
+                      const glm::vec3 &normal);
     float Angle3(const glm::vec3& v, const glm::vec3& w, float multiplier);
     float Angle4(const glm::vec3& v, const glm::vec3& w, float multiplier);
     void ClampState(PumaState& state);
@@ -182,6 +194,10 @@ private:
 
     glm::vec3 last_effector_position_;
     glm::vec3 last_effector_rotation_;
+
+    const glm::vec3 INIT = glm::vec3(999, 999, 999);
+    glm::vec3 current_p3_;
+    glm::vec3 last_p3_;
 
     glm::vec3 last_z4_;
 

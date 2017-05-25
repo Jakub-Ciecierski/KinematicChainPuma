@@ -16,7 +16,8 @@ std::shared_ptr<ifx::GameObject> PumaFactory::CreateAxis(){
             new ifx::RenderObject(ObjectID(0), CreateAxisModel()));
     render_object->addProgram(ifx::ProgramFactory().LoadMainProgram());
     render_object->scale(0.3);
-    render_object->moveTo(glm::vec3(-3, 0, 3));
+    render_object->moveTo(glm::vec3(0, 1, 0));
+    render_object->rotateTo(glm::vec3(90, 0, 0));
 
     auto game_object = std::shared_ptr<ifx::GameObject>(new ifx::GameObject());
     game_object->Add(render_object);
